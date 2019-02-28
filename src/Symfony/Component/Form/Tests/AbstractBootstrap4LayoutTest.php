@@ -160,6 +160,23 @@ abstract class AbstractBootstrap4LayoutTest extends AbstractBootstrap3LayoutTest
         );
     }
 
+    public function testHelp()
+    {
+        $form = $this->factory->createNamed('name', TextType::class, null, array(
+            'help' => 'Help text test!',
+        ));
+        $view = $form->createView();
+        $html = $this->renderHelp($view);
+
+        $this->assertMatchesXpath($html,
+'/small
+    [@id="name_help"]
+    [@class="form-text text-muted"]
+    [.="[trans]Help text test![/trans]"]
+'
+        );
+    }
+
     public function testErrors()
     {
         $form = $this->factory->createNamed('name', TextType::class);
