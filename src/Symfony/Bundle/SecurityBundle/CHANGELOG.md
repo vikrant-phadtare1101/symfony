@@ -1,6 +1,22 @@
 CHANGELOG
 =========
 
+4.2.0
+-----
+
+ * Using the `security.authentication.trust_resolver.anonymous_class` and 
+   `security.authentication.trust_resolver.rememberme_class` parameters to define
+   the token classes is deprecated. To use
+   custom tokens extend the existing `Symfony\Component\Security\Core\Authentication\Token\AnonymousToken`
+   or `Symfony\Component\Security\Core\Authentication\Token\RememberMeToken`.
+
+4.1.0
+-----
+
+ * The `logout_on_user_change` firewall option is deprecated.
+ * deprecated `SecurityUserValueResolver`, use
+   `Symfony\Component\Security\Http\Controller\UserValueResolver` instead.
+
 4.0.0
 -----
 

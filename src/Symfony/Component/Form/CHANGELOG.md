@@ -1,6 +1,16 @@
 CHANGELOG
 =========
 
+4.1.0
+-----
+
+ * added `input=datetime_immutable` to `DateType`, `TimeType`, `DateTimeType`
+ * added `rounding_mode` option to `MoneyType`
+ * added `choice_translation_locale` option to `CountryType`, `LanguageType`, `LocaleType` and `CurrencyType`
+ * deprecated the `ChoiceLoaderInterface` implementation in `CountryType`, `LanguageType`, `LocaleType` and `CurrencyType`
+ * added `input=datetime_immutable` to DateType, TimeType, DateTimeType
+ * added `rounding_mode` option to MoneyType
+
 4.0.0
 -----
 
@@ -19,6 +29,7 @@ CHANGELOG
  * removed passing guesser services ids as the fourth argument of `DependencyInjectionExtension::__construct()`
  * removed the ability to validate an unsubmitted form.
  * removed `ChoiceLoaderInterface` implementation in `TimezoneType`
+ * added the `false_values` option to the `CheckboxType` which allows to configure custom values which will be treated as `false` during submission
 
 3.4.0
 -----
