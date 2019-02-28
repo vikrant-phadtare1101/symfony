@@ -397,13 +397,17 @@ class Finder implements \IteratorAggregate, \Countable
      *
      * This can be slow as all the matching files and directories must be retrieved for comparison.
      *
+     * @param bool $useNaturalSort Whether to use natural sort or not, disabled by default
+     *
      * @return $this
      *
      * @see SortableIterator
      */
-    public function sortByName()
+    public function sortByName(/* bool $useNaturalSort = false */)
     {
-        $this->sort = Iterator\SortableIterator::SORT_BY_NAME;
+        $useNaturalSort = 0 < func_num_args() && func_get_arg(0);
+
+        $this->sort = $useNaturalSort ? Iterator\SortableIterator::SORT_BY_NAME_NATURAL : Iterator\SortableIterator::SORT_BY_NAME;
 
         return $this;
     }
@@ -638,12 +642,7 @@ class Finder implements \IteratorAggregate, \Countable
         return iterator_count($this->getIterator());
     }
 
-    /**
-     * @param $dir
-     *
-     * @return \Iterator
-     */
-    private function searchInDirectory($dir)
+    private function searchInDirectory(string $dir): \Iterator
     {
         if (static::IGNORE_VCS_FILES === (static::IGNORE_VCS_FILES & $this->ignore)) {
             $this->exclude = array_merge($this->exclude, self::$vcsPatterns);

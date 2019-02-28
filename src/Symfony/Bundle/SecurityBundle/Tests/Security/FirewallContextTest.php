@@ -41,17 +41,12 @@ class FirewallContextTest extends TestCase
     }
 
     /**
-     * @expectedDeprecation Method Symfony\Bundle\SecurityBundle\Security\FirewallContext::getContext() is deprecated since Symfony 3.3 and will be removed in 4.0. Use Symfony\Bundle\SecurityBundle\Security\FirewallContext::getListeners/getExceptionListener() instead.
      * @group legacy
+     * @expectedDeprecation Passing an instance of Symfony\Bundle\SecurityBundle\Security\FirewallConfig as 3rd argument to Symfony\Bundle\SecurityBundle\Security\FirewallContext::__construct() is deprecated since Symfony 4.2. Pass a Symfony\Component\Security\Http\Firewall\LogoutListener instance instead.
      */
-    public function testGetContext()
+    public function testFirewallConfigAs3rdConstructorArgument()
     {
-        $exceptionListener = $this->getExceptionListenerMock();
-        $logoutListener = $this->getLogoutListenerMock();
-        $context = (new FirewallContext($listeners = array(), $exceptionListener, $logoutListener, new FirewallConfig('main', 'request_matcher', 'user_checker')))
-            ->getContext();
-
-        $this->assertEquals(array($listeners, $exceptionListener, $logoutListener), $context);
+        new FirewallContext(array(), $this->getExceptionListenerMock(), new FirewallConfig('main', 'user_checker', 'request_matcher'));
     }
 
     private function getExceptionListenerMock()

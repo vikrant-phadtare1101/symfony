@@ -12,8 +12,8 @@
 namespace Symfony\Component\Ldap\Adapter\ExtLdap;
 
 use Symfony\Component\Ldap\Adapter\EntryManagerInterface;
-use Symfony\Component\Ldap\Adapter\RenameEntryInterface;
 use Symfony\Component\Ldap\Entry;
+use Symfony\Component\Ldap\Exception\UpdateOperationException;
 use Symfony\Component\Ldap\Exception\LdapException;
 use Symfony\Component\Ldap\Exception\NotBoundException;
 
@@ -21,7 +21,7 @@ use Symfony\Component\Ldap\Exception\NotBoundException;
  * @author Charles Sarrazin <charles@sarraz.in>
  * @author Bob van de Vijver <bobvandevijver@hotmail.com>
  */
-class EntryManager implements EntryManagerInterface, RenameEntryInterface
+class EntryManager implements EntryManagerInterface
 {
     private $connection;
 
@@ -69,6 +69,36 @@ class EntryManager implements EntryManagerInterface, RenameEntryInterface
     }
 
     /**
+     * Adds values to an entry's multi-valued attribute from the LDAP server.
+     *
+     * @throws NotBoundException
+     * @throws LdapException
+     */
+    public function addAttributeValues(Entry $entry, string $attribute, array $values)
+    {
+        $con = $this->getConnectionResource();
+
+        if (!@ldap_mod_add($con, $entry->getDn(), array($attribute => $values))) {
+            throw new LdapException(sprintf('Could not add values to entry "%s", attribute %s: %s.', $entry->getDn(), $attribute, ldap_error($con)));
+        }
+    }
+
+    /**
+     * Removes values from an entry's multi-valued attribute from the LDAP server.
+     *
+     * @throws NotBoundException
+     * @throws LdapException
+     */
+    public function removeAttributeValues(Entry $entry, string $attribute, array $values)
+    {
+        $con = $this->getConnectionResource();
+
+        if (!@ldap_mod_del($con, $entry->getDn(), array($attribute => $values))) {
+            throw new LdapException(sprintf('Could not remove values from entry "%s", attribute %s: %s.', $entry->getDn(), $attribute, ldap_error($con)));
+        }
+    }
+
+    /**
      * {@inheritdoc}
      */
     public function rename(Entry $entry, $newRdn, $removeOldRdn = true)
@@ -91,5 +121,22 @@ class EntryManager implements EntryManagerInterface, RenameEntryInterface
         }
 
         return $this->connection->getResource();
+    }
+
+    /**
+     * @param iterable|UpdateOperation[] $operations An array or iterable of UpdateOperation instances
+     *
+     * @throws UpdateOperationException in case of an error
+     */
+    public function applyOperations(string $dn, iterable $operations): void
+    {
+        $operationsMapped = array();
+        foreach ($operations as $modification) {
+            $operationsMapped[] = $modification->toArray();
+        }
+
+        if (!@ldap_modify_batch($this->getConnectionResource(), $dn, $operationsMapped)) {
+            throw new UpdateOperationException(sprintf('Error executing UpdateOperation on "%s": "%s".', $dn, ldap_error($this->getConnectionResource())));
+        }
     }
 }

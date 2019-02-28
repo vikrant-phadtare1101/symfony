@@ -13,16 +13,19 @@ namespace Symfony\Component\Cache\Adapter;
 
 use Psr\Cache\CacheItemInterface;
 use Psr\Log\LoggerAwareInterface;
+use Symfony\Component\Cache\CacheInterface;
 use Symfony\Component\Cache\CacheItem;
 use Symfony\Component\Cache\ResettableInterface;
 use Symfony\Component\Cache\Traits\ArrayTrait;
+use Symfony\Component\Cache\Traits\GetTrait;
 
 /**
  * @author Nicolas Grekas <p@tchwork.com>
  */
-class ArrayAdapter implements AdapterInterface, LoggerAwareInterface, ResettableInterface
+class ArrayAdapter implements AdapterInterface, CacheInterface, LoggerAwareInterface, ResettableInterface
 {
     use ArrayTrait;
+    use GetTrait;
 
     private $createCacheItem;
 
@@ -30,7 +33,7 @@ class ArrayAdapter implements AdapterInterface, LoggerAwareInterface, Resettable
      * @param int  $defaultLifetime
      * @param bool $storeSerialized Disabling serialization can lead to cache corruptions when storing mutable values but increases performance otherwise
      */
-    public function __construct($defaultLifetime = 0, $storeSerialized = true)
+    public function __construct(int $defaultLifetime = 0, bool $storeSerialized = true)
     {
         $this->storeSerialized = $storeSerialized;
         $this->createCacheItem = \Closure::bind(
@@ -84,7 +87,7 @@ class ArrayAdapter implements AdapterInterface, LoggerAwareInterface, Resettable
             CacheItem::validateKey($key);
         }
 
-        return $this->generateItems($keys, time(), $this->createCacheItem);
+        return $this->generateItems($keys, microtime(true), $this->createCacheItem);
     }
 
     /**
@@ -112,7 +115,7 @@ class ArrayAdapter implements AdapterInterface, LoggerAwareInterface, Resettable
         $value = $item["\0*\0value"];
         $expiry = $item["\0*\0expiry"];
 
-        if (null !== $expiry && $expiry <= time()) {
+        if (null !== $expiry && $expiry <= microtime(true)) {
             $this->deleteItem($key);
 
             return true;
@@ -128,7 +131,7 @@ class ArrayAdapter implements AdapterInterface, LoggerAwareInterface, Resettable
             }
         }
         if (null === $expiry && 0 < $item["\0*\0defaultLifetime"]) {
-            $expiry = time() + $item["\0*\0defaultLifetime"];
+            $expiry = microtime(true) + $item["\0*\0defaultLifetime"];
         }
 
         $this->values[$key] = $value;

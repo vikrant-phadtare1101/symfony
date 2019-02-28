@@ -34,9 +34,9 @@ class ArrayCache implements CacheInterface, LoggerAwareInterface, ResettableInte
      * @param int  $defaultLifetime
      * @param bool $storeSerialized Disabling serialization can lead to cache corruptions when storing mutable values but increases performance otherwise
      */
-    public function __construct($defaultLifetime = 0, $storeSerialized = true)
+    public function __construct(int $defaultLifetime = 0, bool $storeSerialized = true)
     {
-        $this->defaultLifetime = (int) $defaultLifetime;
+        $this->defaultLifetime = $defaultLifetime;
         $this->storeSerialized = $storeSerialized;
     }
 
@@ -64,7 +64,7 @@ class ArrayCache implements CacheInterface, LoggerAwareInterface, ResettableInte
             CacheItem::validateKey($key);
         }
 
-        return $this->generateItems($keys, time(), function ($k, $v, $hit) use ($default) { return $hit ? $v : $default; });
+        return $this->generateItems($keys, microtime(true), function ($k, $v, $hit) use ($default) { return $hit ? $v : $default; });
     }
 
     /**
@@ -121,7 +121,7 @@ class ArrayCache implements CacheInterface, LoggerAwareInterface, ResettableInte
                 }
             }
         }
-        $expiry = 0 < $ttl ? time() + $ttl : PHP_INT_MAX;
+        $expiry = 0 < $ttl ? microtime(true) + $ttl : PHP_INT_MAX;
 
         foreach ($valuesArray as $key => $value) {
             $this->values[$key] = $value;
