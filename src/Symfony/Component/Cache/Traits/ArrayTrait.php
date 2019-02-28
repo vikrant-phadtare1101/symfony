@@ -44,7 +44,7 @@ trait ArrayTrait
     {
         CacheItem::validateKey($key);
 
-        return isset($this->expiries[$key]) && ($this->expiries[$key] > time() || !$this->deleteItem($key));
+        return isset($this->expiries[$key]) && ($this->expiries[$key] > microtime(true) || !$this->deleteItem($key));
     }
 
     /**
