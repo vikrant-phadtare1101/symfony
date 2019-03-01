@@ -200,6 +200,7 @@ class MainConfiguration implements ConfigurationInterface
             ->booleanNode('logout_on_user_change')
                 ->defaultTrue()
                 ->info('When true, it will trigger a logout for the user if something has changed. Note: No-Op option since 4.0. Will always be true.')
+                ->setDeprecated('The "%path%.%node%" configuration key has been deprecated in Symfony 4.1.')
             ->end()
             ->arrayNode('logout')
                 ->treatTrueLike(array())
@@ -248,7 +249,10 @@ class MainConfiguration implements ConfigurationInterface
                     ->scalarNode('provider')->end()
                     ->scalarNode('parameter')->defaultValue('_switch_user')->end()
                     ->scalarNode('role')->defaultValue('ROLE_ALLOWED_TO_SWITCH')->end()
-                    ->booleanNode('stateless')->defaultValue(false)->end()
+                    ->booleanNode('stateless')
+                        ->setDeprecated('The "%path%.%node%" configuration key has been deprecated in Symfony 4.1.')
+                        ->defaultValue(false)
+                    ->end()
                 ->end()
             ->end()
         ;
@@ -310,7 +314,6 @@ class MainConfiguration implements ConfigurationInterface
                         ),
                         'my_entity_provider' => array('entity' => array('class' => 'SecurityBundle:User', 'property' => 'username')),
                     ))
-                    ->isRequired()
                     ->requiresAtLeastOneElement()
                     ->useAttributeAsKey('name')
                     ->prototype('array')
@@ -384,6 +387,9 @@ class MainConfiguration implements ConfigurationInterface
                                 ->max(31)
                                 ->defaultValue(13)
                             ->end()
+                            ->scalarNode('memory_cost')->defaultNull()->end()
+                            ->scalarNode('time_cost')->defaultNull()->end()
+                            ->scalarNode('threads')->defaultNull()->end()
                             ->scalarNode('id')->end()
                         ->end()
                     ->end()

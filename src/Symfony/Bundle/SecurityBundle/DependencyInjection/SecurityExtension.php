@@ -13,6 +13,7 @@ namespace Symfony\Bundle\SecurityBundle\DependencyInjection;
 
 use Symfony\Bundle\SecurityBundle\DependencyInjection\Security\Factory\SecurityFactoryInterface;
 use Symfony\Bundle\SecurityBundle\DependencyInjection\Security\UserProvider\UserProviderFactoryInterface;
+use Symfony\Bundle\SecurityBundle\SecurityUserValueResolver;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\Console\Application;
 use Symfony\Component\DependencyInjection\Alias;
@@ -25,9 +26,10 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Parameter;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\Config\FileLocator;
-use Symfony\Component\Security\Core\Authorization\ExpressionLanguage;
 use Symfony\Component\Security\Core\Authorization\Voter\VoterInterface;
 use Symfony\Component\Security\Core\Encoder\Argon2iPasswordEncoder;
+use Symfony\Component\Security\Core\User\UserProviderInterface;
+use Symfony\Component\Security\Http\Controller\UserValueResolver;
 
 /**
  * SecurityExtension.
@@ -43,7 +45,6 @@ class SecurityExtension extends Extension
     private $listenerPositions = array('pre_auth', 'form', 'http', 'remember_me');
     private $factories = array();
     private $userProviderFactories = array();
-    private $expressionLanguage;
 
     public function __construct()
     {
@@ -112,6 +113,10 @@ class SecurityExtension extends Extension
             $container->getDefinition('security.command.user_password_encoder')->replaceArgument(1, array_keys($config['encoders']));
         }
 
+        if (!class_exists(UserValueResolver::class)) {
+            $container->getDefinition('security.user_value_resolver')->setClass(SecurityUserValueResolver::class);
+        }
+
         $container->registerForAutoconfiguration(VoterInterface::class)
             ->addTag('security.voter');
     }
@@ -130,10 +135,6 @@ class SecurityExtension extends Extension
 
     private function createAuthorization($config, ContainerBuilder $container)
     {
-        if (!$config['access_control']) {
-            return;
-        }
-
         foreach ($config['access_control'] as $access) {
             $matcher = $this->createRequestMatcher(
                 $container,
@@ -150,6 +151,14 @@ class SecurityExtension extends Extension
 
             $container->getDefinition('security.access_map')
                       ->addMethodCall('add', array($matcher, $attributes, $access['requires_channel']));
+        }
+
+        // allow cache warm-up for expressions
+        if (count($this->expressions)) {
+            $container->getDefinition('security.cache_warmer.expression')
+                ->replaceArgument(0, new IteratorArgument(array_values($this->expressions)));
+        } else {
+            $container->removeDefinition('security.cache_warmer.expression');
         }
     }
 
@@ -171,6 +180,10 @@ class SecurityExtension extends Extension
         }
         $arguments[1] = new IteratorArgument($userProviders);
         $contextListenerDefinition->setArguments($arguments);
+
+        if (1 === \count($providerIds)) {
+            $container->setAlias(UserProviderInterface::class, current($providerIds));
+        }
 
         $customUserChecker = false;
 
@@ -418,6 +431,9 @@ class SecurityExtension extends Extension
                         $userProvider = null;
                     } elseif ($defaultProvider) {
                         $userProvider = $defaultProvider;
+                    } elseif (empty($providerIds)) {
+                        $userProvider = sprintf('security.user.provider.missing.%s', $key);
+                        $container->setDefinition($userProvider, (new ChildDefinition('security.user.provider.missing'))->replaceArgument(0, $id));
                     } else {
                         throw new InvalidConfigurationException(sprintf('Not configuring explicitly the provider for the "%s" listener on "%s" firewall is ambiguous as there is more than one registered provider.', $key, $id));
                     }
@@ -521,7 +537,11 @@ class SecurityExtension extends Extension
 
             return array(
                 'class' => 'Symfony\Component\Security\Core\Encoder\Argon2iPasswordEncoder',
-                'arguments' => array(),
+                'arguments' => array(
+                    $config['memory_cost'],
+                    $config['time_cost'],
+                    $config['threads'],
+                ),
             );
         }
 
@@ -626,15 +646,18 @@ class SecurityExtension extends Extension
 
     private function createExpression($container, $expression)
     {
-        if (isset($this->expressions[$id = 'security.expression.'.ContainerBuilder::hash($expression)])) {
+        if (isset($this->expressions[$id = '.security.expression.'.ContainerBuilder::hash($expression)])) {
             return $this->expressions[$id];
         }
 
+        if (!class_exists('Symfony\Component\ExpressionLanguage\ExpressionLanguage')) {
+            throw new \RuntimeException('Unable to use expressions as the Symfony ExpressionLanguage component is not installed.');
+        }
+
         $container
-            ->register($id, 'Symfony\Component\ExpressionLanguage\SerializedParsedExpression')
+            ->register($id, 'Symfony\Component\ExpressionLanguage\Expression')
             ->setPublic(false)
             ->addArgument($expression)
-            ->addArgument(serialize($this->getExpressionLanguage()->parse($expression, array('token', 'user', 'object', 'roles', 'request', 'trust_resolver'))->getNodes()))
         ;
 
         return $this->expressions[$id] = new Reference($id);
@@ -646,7 +669,7 @@ class SecurityExtension extends Extension
             $methods = array_map('strtoupper', (array) $methods);
         }
 
-        $id = 'security.request_matcher.'.ContainerBuilder::hash(array($path, $host, $methods, $ip, $attributes));
+        $id = '.security.request_matcher.'.ContainerBuilder::hash(array($path, $host, $methods, $ip, $attributes));
 
         if (isset($this->requestMatchers[$id])) {
             return $this->requestMatchers[$id];
@@ -696,17 +719,5 @@ class SecurityExtension extends Extension
     {
         // first assemble the factories
         return new MainConfiguration($this->factories, $this->userProviderFactories);
-    }
-
-    private function getExpressionLanguage()
-    {
-        if (null === $this->expressionLanguage) {
-            if (!class_exists('Symfony\Component\ExpressionLanguage\ExpressionLanguage')) {
-                throw new \RuntimeException('Unable to use expressions as the Symfony ExpressionLanguage component is not installed.');
-            }
-            $this->expressionLanguage = new ExpressionLanguage();
-        }
-
-        return $this->expressionLanguage;
     }
 }
